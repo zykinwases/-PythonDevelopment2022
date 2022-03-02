@@ -1,5 +1,7 @@
 import textdistance
 import random
+import urllib.request
+import sys
 
 def bullscows(guess, secret):
     bulls = textdistance.hamming.similarity(guess, secret)
@@ -27,5 +29,18 @@ def gameplay(ask, inform, words):
         attempts += 1
     return attempts
 
-numbers = [str(i) for i in range(10,100)]
-print(gameplay(ask, inform, numbers))
+argv = sys.argv[1:]
+
+if argv[0].startswith("http"):
+    vocabulary = [line.decode("utf-8").strip() for line in urllib.request.urlopen(argv[0])]
+else:
+    f = open(path, "r")
+    vocabulary = [line.strip() for line in f.readlines()]
+
+length = 5
+if len(argv) == 2:
+    length = int(argv[1])
+truncated = [word for word in vocabulary if len(word) == length]
+vocabulary = truncated
+
+print("Количество попыток: ", gameplay(ask, inform, vocabulary))
