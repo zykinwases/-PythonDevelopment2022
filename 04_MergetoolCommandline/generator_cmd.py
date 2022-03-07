@@ -1,4 +1,6 @@
+from ast import arg
 import cmd, sys
+from tracemalloc import start
 import pynames
 import inspect
 
@@ -6,7 +8,7 @@ class GeneratingShell(cmd.Cmd):
     intro = 'Welcome to the name generation shell.   Type help or ? to list commands.\n'
     prompt = '(generator) '
     language = 'NATIVE'
-    genders = ['MALE', 'FEMALE', 'ALL']
+    genders = ['MALE', 'FEMALE']
     languages = ['RU', 'EN', 'NATIVE']
     generators = []
     for generator in pynames.get_all_generators():
@@ -16,7 +18,7 @@ class GeneratingShell(cmd.Cmd):
         if subclass_position > -1:
             subclass_name = name[0:subclass_position]
         class_name = generator.__module__.split('.')[-1]
-        if (subclass_name == ''):
+        if (subclass_name.lower() == class_name):
             generators.append({'class': class_name, 'subclass': '', 'generator': generator.__module__ + '.' + generator.__name__})
         else:
             generators.append({'class': class_name, 'subclass': subclass_name, 'generator': generator.__module__ + '.' + generator.__name__})
@@ -26,7 +28,9 @@ class GeneratingShell(cmd.Cmd):
         args = arg.split()
         if (args[0] in self.languages):
             self.language = args[0]
-    
+    def complete_language(self, text, line, begidx, endidx):
+        return [l for l in self.languages if l.startswith(text)]
+
     def do_generate(self, arg):
         'Generate name: generate <class> <subclass> <gender> or generate <class> <subclass>'
         args = arg.split()
@@ -47,7 +51,19 @@ class GeneratingShell(cmd.Cmd):
                 if (gen['class'] == args[0]) and (gen['subclass'] == args[1]):
                     print(eval(gen['generator'] + '().get_name_simple(pynames.GENDER.' + gender + ', pynames.LANGUAGE.' + self.language + ')'))
                     return
-    
+    def complete_generate(self, text, line, begin, end):
+        command = line.split(' ')
+        if (len(command) == 2):
+            return [l['class'] for l in self.generators if l['class'].startswith(text)]
+        if (len(command) == 3):
+            main_generator = [l for l in self.generators if l['class'] == command[1]][0]
+            if main_generator['subclass'] == '':
+                return [g for g in self.genders if g.startswith(command[2])]
+            else:
+                return [l['subclass'] for l in self.generators if (l['class'] == command[1]) and (l['subclass'].startswith(command[2]))]
+        if (len(command) == 4):
+            return [g for g in self.genders if g.startswith(command[3])]
+
     def do_info(self, arg):
         'Print info about class/subclass: info <class> <subclass> or info <class> <subclass> <gender> or info <class> <subclass> language'
         args = arg.split()
@@ -73,7 +89,25 @@ class GeneratingShell(cmd.Cmd):
                 for gen in self.generators:
                     if (gen['class'] == args[0]) and (gen['subclass'] == args[1]):
                         print(' '.join(eval(gen['generator'] + '().languages')))
-    
+    def complete_info(self, text, line, begin, end):
+        command = line.split(' ')
+        if (len(command) == 2):
+            return [l['class'] for l in self.generators if l['class'].startswith(text)]
+        if (len(command) == 3):
+            main_generator = [l for l in self.generators if l['class'] == command[1]][0]
+            if main_generator['subclass'] == '':
+                completion_list = [g for g in self.genders if g.startswith(command[2])]
+                if ("language".startswith(command[2])):
+                    completion_list.append("language")
+                return completion_list
+            else:
+                return [l['subclass'] for l in self.generators if (l['class'] == command[1]) and (l['subclass'].startswith(command[2]))]
+        if (len(command) == 4):
+            completion_list = [g for g in self.genders if g.startswith(command[3])]
+            if ("language".startswith(command[3])):
+                completion_list.append("language")
+            return completion_list
+
     def do_exit(self, arg):
         'Exit name generation:  exit'
         return True
